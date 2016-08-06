@@ -58,6 +58,7 @@ class Shell(object):
         self.paramiko_channel.invoke_shell()
 
         self.ansi_escape_code_regexp = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
+        self.exit_command = kwargs.get('exit_command', 'exit')
         self.last_prompt = ''
         self.line_separator = kwargs.get('line_separator', '\n')
         self.recv_bufsize = kwargs.get('recv_buffer_size', 4096)
@@ -96,7 +97,9 @@ class Shell(object):
             raise PromptError('Prompt not seen')
         return output
 
-    def exit(self, exit_command='exit'):
+    def exit(self, exit_command=None):
+        if exit_command is None:
+            exit_command = self.exit_command
         if hasattr(self, 'paramiko_channel'):
             if self.paramiko_channel.get_transport().is_active():
                 self.paramiko_channel.send(exit_command)
