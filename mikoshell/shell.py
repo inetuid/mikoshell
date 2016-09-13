@@ -92,9 +92,9 @@ class Shell(object):
             raise ResponseError('Command not echoed')
         if output[0] != send_command:
             raise ResponseError('Command echo mismatch')
-        output.pop(0)
         if timeout_retries != 0 and retries_left == 0:
             raise PromptError('Prompt not seen')
+        output.pop(0)
         return output
 
     def exit(self, exit_command=None):
@@ -106,6 +106,12 @@ class Shell(object):
                 self.paramiko_channel.shutdown(2)
                 self.paramiko_channel.close()
             del self.paramiko_channel
+
+    @classmethod
+    def from_transport(cls, paramiko_transport, shell_prompts=None):
+        if shell_prompts is None:
+            shell_prompts = ShellPrompts()
+        return cls(paramiko_transport.open_session(), shell_prompts)
 
     def on_banner(self, banner):
         """Override to do something with the banner"""
@@ -149,7 +155,6 @@ class Shell(object):
             output.append(output_line)
         return (output, timeout_retries)
 
-#   @utils.debug
     def tidy_output_line(self, output_line):
         """Override to remove device specific cruft"""
         return self.ansi_escape_code_regexp.sub('', output_line).strip('\r')
