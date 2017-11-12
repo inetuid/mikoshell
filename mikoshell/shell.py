@@ -1,7 +1,10 @@
-"""Simple interactive shell over Paramiko"""
+"""Simple shell interface for Paramiko"""
+import codecs
 import re
 import socket
 import sys
+if sys.version_info > (3,):
+    long = int
 #
 from paramiko.channel import Channel as ParamikoChannel
 #
@@ -12,10 +15,10 @@ def debug(func):
     def func_wrapper(*args, **kwargs):
         result = func(*args, **kwargs)
         hex_result = ''
-        if isinstance(result, basestring):
-            hex_result = result.encode('hex')
+        if isinstance(result, str):
+            hex_result = codecs.encode(result.encode(), 'hex')
         elif isinstance(result, list):
-            if len(result) == 1 and isinstance(result[0], basestring):
+            if len(result) == 1 and isinstance(result[0], str):
                 hex_result = result[0].encode('hex')
         sys.stderr.write(
             'DEBUG: {}({}, {}) = [{}][{}]\n'.format(
@@ -60,7 +63,7 @@ class Shell(object):
         self.ansi_escape_code_regexp = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
         self.exit_command = kwargs.get('exit_command', 'exit')
         self.last_prompt = ''
-        self.line_separator = kwargs.get('line_separator', '\n')
+        self.line_separator = kwargs.get('line_separator', '\n').encode()
         self.recv_bufsize = kwargs.get('recv_buffer_size', 4096)
 
         banner, retries_left = self.read_until_prompt()
@@ -77,7 +80,8 @@ class Shell(object):
 
     def __repr__(self):
         return 'Shell @ {} ({})'.format(
-            hex(long(id(self)) & long(0xffffffff)),
+#            hex(long(id(self)) & long(0xffffffff)),
+            hex(id(self) & 0xffffffff),
             repr(self.paramiko_channel)
         )
 
@@ -124,6 +128,7 @@ class Shell(object):
     def read_until_prompt(self, timeout_retries=25):
         """Read from channel until prompt is seen"""
         read_buffer = b''
+        separator_rfind_start = 0
         while timeout_retries > 0:
             if self.paramiko_channel.exit_status_ready():
                 break
@@ -138,8 +143,9 @@ class Shell(object):
             if len(recv_bytes) == 0:
                 raise RecvError('Channel closed during recv()')
             read_buffer += recv_bytes
-            separator_position = read_buffer.rfind(self.line_separator)
+            separator_position = read_buffer.rfind(self.line_separator, separator_rfind_start)
             if separator_position != -1:
+                separator_rfind_start = separator_position
                 candidate_prompt = self.tidy_output_line(read_buffer[separator_position + 1:])
                 if self.shell_prompts.is_prompt(candidate_prompt):
                     self.on_prompt(candidate_prompt)
@@ -157,4 +163,4 @@ class Shell(object):
 
     def tidy_output_line(self, output_line):
         """Override to remove device specific cruft"""
-        return self.ansi_escape_code_regexp.sub('', output_line).strip('\r')
+        return self.ansi_escape_code_regexp.sub('', output_line.decode()).strip('\r')

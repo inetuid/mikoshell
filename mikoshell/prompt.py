@@ -14,10 +14,10 @@ class ShellPrompt(object):
         return '{}.prompts={}'.format(type(self).__name__, repr(self.prompts))
 
     def add_prompt(self, prompt):
-        if isinstance(prompt, basestring):
+        if isinstance(prompt, str):
             if prompt not in self.prompts:
                 self.prompts[prompt] = {
-                    'prompt_type': basestring,
+                    'prompt_type': str,
                     'prompt_value': prompt
                 }
         elif isinstance(prompt, dict):
@@ -31,10 +31,10 @@ class ShellPrompt(object):
 
     def is_prompt(self, candidate_prompt):
         if candidate_prompt in self.prompts and \
-                self.prompts[candidate_prompt]['prompt_type'] is basestring:
+                self.prompts[candidate_prompt]['prompt_type'] is str:
             return True
         for prompt in self.prompts.values():
-            if prompt['prompt_type'] is basestring:
+            if prompt['prompt_type'] is str:
                 continue
             elif prompt['prompt_type'] == 'regexp':
                 if re.match(prompt['prompt_regexp'], candidate_prompt):
