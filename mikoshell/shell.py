@@ -44,12 +44,12 @@ class Shell(object):
     def __exit__(self, exception_type, exception_value, traceback):
         self.exit()
 
-    def __init__(self, paramiko_channel, shell_prompts, **kwargs):
+    def __init__(self, paramiko_channel, shell_prompt, **kwargs):
         assert isinstance(paramiko_channel, ParamikoChannel)
-        assert isinstance(shell_prompts, ShellPrompt)
+        assert isinstance(shell_prompt, ShellPrompt)
 
         self.paramiko_channel = paramiko_channel
-        self.shell_prompts = shell_prompts
+        self.shell_prompt = shell_prompt
 
         self.paramiko_channel.settimeout(kwargs.get('timeout', 0.2))
         self.paramiko_channel.set_combine_stderr(kwargs.get('combine_stderr', False))
@@ -71,7 +71,7 @@ class Shell(object):
             if len(banner) == 0:
                 raise PromptError('Cannot auto-detect prompt')
             timeout_prompt = banner.pop()
-            self.shell_prompts.add_prompt(timeout_prompt)
+            self.shell_prompt.add_prompt(timeout_prompt)
             self.command('\n', 5)
         self.on_banner(banner)
 
@@ -112,10 +112,10 @@ class Shell(object):
             del self.paramiko_channel
 
     @classmethod
-    def from_transport(cls, paramiko_transport, shell_prompts=None):
-        if shell_prompts is None:
-            shell_prompts = ShellPrompts()
-        return cls(paramiko_transport.open_session(), shell_prompts)
+    def from_transport(cls, paramiko_transport, shell_prompt=None, **kwargs):
+        if shell_prompt is None:
+            shell_prompt = ShellPrompt()
+        return cls(paramiko_transport.open_session(), shell_prompt, **kwargs)
 
     def on_banner(self, banner):
         """Override to do something with the banner"""
@@ -147,17 +147,15 @@ class Shell(object):
             if separator_position != -1:
                 separator_rfind_start = separator_position
                 candidate_prompt = self.tidy_output_line(read_buffer[separator_position + 1:])
-                if self.shell_prompts.is_prompt(candidate_prompt):
+                if self.shell_prompt.is_prompt(candidate_prompt):
                     self.on_prompt(candidate_prompt)
                     read_buffer = read_buffer[:separator_position]
                     break
         output = []
         for raw_output in read_buffer.split(self.line_separator):
             output_line = self.tidy_output_line(raw_output)
-            if self.shell_prompts.is_prompt(output_line):
+            if self.shell_prompt.is_prompt(output_line):
                 raise PromptError('Unexpected prompt')
-#               self.on_prompt(output_line)
-#               break
             output.append(output_line)
         return (output, timeout_retries)
 
